@@ -7,11 +7,11 @@ const passport = require('passport');
 const jwt = require('jsonwebtoken');
 const { Server } = require('socket.io');
 
-const { pool, initSchema } = require('./db');
-const { router: authRouter } = require('./routes/auth');
-const adminRouter = require('./routes/admin');
-const upscaleRouter = require('./routes/upscale');
-const qrisRouter = require('./routes/qris');
+const { pool, initSchema } = require('./server/db');
+const { router: authRouter } = require('./server/routes/auth');
+const adminRouter = require('./server/routes/admin');
+const upscaleRouter = require('./server/routes/upscale');
+const qrisRouter = require('./server/routes/qris');
 
 const REQUIRED_ENV = ['DATABASE_URL', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'JWT_SECRET', 'FRONTEND_URL'];
 const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
