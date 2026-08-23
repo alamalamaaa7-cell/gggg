@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="biru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UpclaseLam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="config.js"></script>
+
+<style>
+  :root {
+    --paper: #F4EBD9; --paper-alt: #E8DCB8; --ink: #111827; --ink-soft: #4B5563;
+    --white-card: #FAF4E8; --accent: #2563EB; --accent-dark: #1D4ED8; --accent-light: #BFDBFE; --glow: rgba(37,99,235,0.25);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--paper); color: var(--ink); font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+  ::selection { background: var(--accent); color: #fff; }
+  .display { font-family: 'Space Grotesk', sans-serif; font-weight: 700; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .grain { position: fixed; inset: 0; pointer-events: none; z-index: 999; opacity: 0.035; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .btn { padding: 10px 20px; border-radius: 12px; font-size: 0.88rem; font-weight: 800; display: inline-flex;
+    align-items: center; justify-content: center; gap: 8px; cursor: pointer; border: 3px solid var(--ink);
+    font-family: 'Plus Jakarta Sans', sans-serif; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); user-select: none; }
+  .btn-fill { background: var(--accent); color: #fff; box-shadow: 4px 4px 0 var(--ink); }
+  .btn-fill:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+  .btn-line { background: var(--white-card); box-shadow: 4px 4px 0 var(--ink); color: var(--ink); }
+  .btn-line:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink) !important; }
+  .btn-sm { padding: 6px 14px; font-size: 0.78rem; border-radius: 10px; box-shadow: 3px 3px 0 var(--ink); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+  .lang-switcher { display: inline-flex; align-items: center; background: var(--paper-alt); border: 2.5px solid var(--ink);
+    border-radius: 12px; padding: 3px; box-shadow: 3px 3px 0 var(--ink); cursor: pointer; user-select: none; }
+  .lang-btn { padding: 4px 10px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 800; transition: all 0.2s; color: var(--ink-soft); }
+  .lang-btn.active { background: var(--accent); color: #ffffff; box-shadow: 1px 1px 0 var(--ink); }
+  .media-wrapper { position: relative; width: 100%; border: 3px solid var(--ink); border-radius: 20px; overflow: hidden;
+    background: #0b0f19; box-shadow: 8px 8px 0 var(--ink); touch-action: none; }
+  canvas { display: block; width: 100%; height: auto; max-height: 70vh; margin: 0 auto; object-fit: contain; }
+  .split-line { position: absolute; top: 0; bottom: 0; width: 4px; background: #ffffff; cursor: ew-resize; z-index: 20; box-shadow: 0 0 15px rgba(255,255,255,0.9); touch-action: none; }
+  .split-line::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 44px; transform: translateX(-50%); }
+  .split-button { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 36px; height: 32px;
+    background: var(--accent); border: 3px solid var(--ink); border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 900; font-size: 12px; box-shadow: 3px 3px 0 var(--ink); user-select: none; transition: transform 0.15s; }
+  .split-line:hover .split-button { transform: translate(-50%, -50%) scale(1.1); }
+  .panel-card { background: var(--white-card); border: 3px solid var(--ink); border-radius: 24px; box-shadow: 8px 8px 0 var(--ink); padding: 22px; position: relative; }
+  .dropzone { border: 3px dashed var(--accent); border-radius: 18px; padding: 24px 16px; text-align: center; background: var(--accent-light); cursor: pointer; transition: all 0.25s ease; }
+  .dropzone:hover { background: var(--accent); border-color: var(--ink); color: #fff; }
+  input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 8px; background: var(--accent);
+    border: 3px solid var(--ink); cursor: pointer; margin-top: -7px; box-shadow: 2px 2px 0 var(--ink); }
+  input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; cursor: pointer; background: var(--paper-alt); border-radius: 10px; border: 2px solid var(--ink); }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(17,24,39,0.8); backdrop-filter: blur(6px); z-index: 500; opacity: 0;
+    pointer-events: none; transition: opacity 0.3s ease; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.active { opacity: 1; pointer-events: auto; }
+  .modal-box { background: var(--paper); border: 4px solid var(--ink); border-radius: 28px; box-shadow: 10px 10px 0 var(--ink);
+    width: min(560px, 100%); max-height: 90vh; overflow-y: auto; padding: 24px; position: relative; transform: scale(0.92); transition: transform 0.3s ease; }
+  .modal-overlay.active .modal-box { transform: scale(1); }
+  .vip-drawer { position: fixed; top: 0; left: 0; bottom: 0; width: min(460px, 92vw); background: var(--paper); border-right: 4px solid var(--ink);
+    z-index: 501; transform: translateX(-100%); transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); padding: 28px 20px; overflow-y: auto; box-shadow: 10px 0 30px rgba(0,0,0,0.3); }
+  .modal-overlay.active .vip-drawer { transform: translateX(0); }
+  .toast { position: fixed; top: 20px; right: 20px; background: var(--ink); color: var(--paper); padding: 12px 18px; border-radius: 14px;
+    font-size: 0.82rem; font-family: 'JetBrains Mono', monospace; z-index: 1000; box-shadow: 4px 4px 0 var(--accent); transform: translateY(-100px);
+    opacity: 0; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; font-weight: 600; max-width: 90vw; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .scanline { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0, 0, 0, 0.2) 50%, rgba(0, 0, 0, 0.2)); background-size: 100% 4px; opacity: 0.15; }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; animation: pulse-dot 1.4s infinite; }
+  @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</head>
+<body class="antialiased">
+
+<div class="grain"></div>
+
+<div id="toast" class="toast">
+  <svg class="w-5 h-5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+  <span id="toastMsg">Informasi</span>
+</div>
+
+<!-- ===== MODAL: LOGIN (Google OAuth asli, redirect ke backend) ===== -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal-box max-w-md text-center">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b-2 border-[var(--ink)]">
+      <div class="text-left">
+        <span class="mono text-[10px] uppercase font-extrabold text-[var(--accent-dark)] block">PORTAL AKSES</span>
+        <h3 class="display text-xl font-black">MASUK KE UPCLASELAM</h3>
+      </div>
+      <button onclick="closeAuthModal()" class="w-8 h-8 border-2 border-[var(--ink)] rounded-xl font-bold flex items-center justify-center hover:bg-[var(--accent)] hover:text-white transition">✕</button>
+    </div>
+    <p class="text-xs text-[var(--ink-soft)] mono mb-5">Login memakai akun Google Anda. Aman, cepat, dan otomatis tercatat untuk keamanan akun.</p>
+    <button onclick="loginWithGoogle()" class="btn btn-line w-full py-3.5 flex items-center justify-center gap-3 font-bold text-sm hover:border-[var(--accent)]">
+      <svg class="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+      <span>Login dengan Google</span>
+    </button>
+  </div>
+</div>
+
+<!-- ===== MODAL: ADMIN (khusus role admin) ===== -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal-box max-w-2xl">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b-3 border-[var(--ink)]">
+      <div class="flex items-center gap-2">
+        <span class="bg-yellow-400 text-black text-[10px] mono font-bold px-2 py-0.5 rounded border border-[var(--ink)]">ADMIN</span>
+        <h3 class="display text-lg font-extrabold">PANEL KONTROL UPCLASELAM</h3>
+        <span class="flex items-center gap-1 text-[10px] mono text-green-700 font-bold ml-1"><span class="live-dot"></span>LIVE</span>
+      </div>
+      <button onclick="closeAdminModal()" class="w-8 h-8 border-2 border-[var(--ink)] rounded-xl font-bold flex items-center justify-center hover:bg-[var(--accent)] hover:text-white transition">✕</button>
+    </div>
+
+    <!-- QRIS -->
+    <div class="p-4 rounded-2xl bg-[var(--white-card)] border-2 border-[var(--ink)] shadow-[4px_4px_0_var(--ink)] mb-5">
+      <h4 class="font-bold text-xs uppercase mono mb-2">Upload Foto QRIS Pembayaran</h4>
+      <div class="flex flex-col sm:flex-row items-center gap-4">
+        <div class="w-24 h-24 border-2 border-[var(--ink)] rounded-xl overflow-hidden bg-white shrink-0 flex items-center justify-center p-1">
+          <img id="adminQrisPreview" src="" alt="QRIS Preview" class="max-w-full max-h-full object-contain">
+        </div>
+        <div class="grow space-y-2 w-full">
+          <input type="file" id="adminQrisInput" accept="image/*" class="hidden" onchange="handleQrisUpload(event)">
+          <button onclick="document.getElementById('adminQrisInput').click()" class="btn btn-line btn-sm w-full">Ganti Foto QRIS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grant VIP -->
+    <div class="p-4 rounded-2xl bg-[var(--white-card)] border-2 border-[var(--ink)] shadow-[4px_4px_0_var(--ink)] mb-5">
+      <h4 class="font-bold text-xs uppercase mono mb-3">Tambah / Set Status Paket VIP User</h4>
+      <form onsubmit="adminGrantVip(event)" class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold mono uppercase mb-1">Email User (harus sudah pernah login):</label>
+          <input type="email" id="adminTargetEmail" required placeholder="user@gmail.com" class="w-full px-3 py-2 rounded-xl border-2 border-[var(--ink)] bg-white font-mono text-xs">
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <select id="adminSelectPackage" class="w-full px-3 py-2 rounded-xl border-2 border-[var(--ink)] bg-white font-mono text-xs font-bold">
+            <option value="basic">Basic</option>
+            <option value="standar">VIP Standar</option>
+            <option value="promax" selected>VIP Pro Max</option>
+          </select>
+          <input type="number" id="adminDurationDays" min="1" value="30" required class="w-full px-3 py-2 rounded-xl border-2 border-[var(--ink)] bg-white font-mono text-xs font-bold" placeholder="Durasi (Hari)">
+        </div>
+        <button type="submit" class="btn btn-fill w-full py-2.5 text-xs font-bold">Aktifkan Paket VIP</button>
+      </form>
+    </div>
+
+    <!-- Semua User -->
+    <div class="mb-5">
+      <h4 class="font-bold text-xs uppercase mono mb-2">Semua User Terdaftar</h4>
+      <div class="border-2 border-[var(--ink)] rounded-xl overflow-x-auto bg-white max-h-48">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-[var(--paper-alt)] border-b-2 border-[var(--ink)]">
+            <tr><th class="p-2">Email</th><th class="p-2">Role</th><th class="p-2">Paket</th><th class="p-2 text-right">Aksi</th></tr>
+          </thead>
+          <tbody id="adminUserTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Statistik & Riwayat Login Realtime -->
+    <div>
+      <h4 class="font-bold text-xs uppercase mono mb-3">Statistik & Riwayat Login (Realtime)</h4>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div class="p-3 rounded-xl bg-[var(--white-card)] border-2 border-[var(--ink)] shadow-[3px_3px_0_var(--ink)]">
+          <div class="text-[10px] mono uppercase text-[var(--ink-soft)] font-bold">Total User Terdaftar</div>
+          <div class="display text-2xl font-black text-[var(--accent-dark)]" id="statTotalUsers">0</div>
+        </div>
+        <div class="p-3 rounded-xl bg-[var(--white-card)] border-2 border-[var(--ink)] shadow-[3px_3px_0_var(--ink)]">
+          <div class="text-[10px] mono uppercase text-[var(--ink-soft)] font-bold">Total Login Tercatat</div>
+          <div class="display text-2xl font-black text-[var(--accent-dark)]" id="statTotalLogins">0</div>
+        </div>
+      </div>
+      <div class="border-2 border-[var(--ink)] rounded-xl overflow-x-auto bg-white max-h-56">
+        <table class="w-full text-left text-xs font-mono">
+          <thead class="bg-[var(--paper-alt)] border-b-2 border-[var(--ink)] sticky top-0">
+            <tr><th class="p-2">Email</th><th class="p-2">Metode</th><th class="p-2">Waktu</th></tr>
+          </thead>
+          <tbody id="adminLoginHistoryBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VIP DRAWER ===== -->
+<div class="modal-overlay" id="vipDrawerOverlay">
+  <div class="vip-drawer" id="vipDrawer">
+    <div class="flex items-center justify-between pb-3 mb-5 border-b-3 border-[var(--ink)]">
+      <h2 class="display text-lg font-extrabold">PAKET VIP</h2>
+      <button onclick="closeVipDrawer()" class="w-8 h-8 border-2 border-[var(--ink)] rounded-xl bg-[var(--white-card)] font-bold flex items-center justify-center hover:bg-[var(--accent)] hover:text-white transition">✕</button>
+    </div>
+    <p class="text-xs text-[var(--ink-soft)] mono mb-5 leading-relaxed">Pilih paket VIP untuk menikmati proses restorasi HD tanpa hambatan.</p>
+    <div class="space-y-4">
+      <div class="p-4 rounded-2xl bg-[var(--white-card)] border-3 border-[var(--ink)] shadow-[4px_4px_0_var(--ink)]">
+        <div class="mono text-xs font-bold uppercase text-[var(--ink-soft)] mb-1">Basic</div>
+        <div class="display text-2xl mb-1">Rp 9.000<span class="text-xs font-normal text-gray-600"> / 30 Hari</span></div>
+        <button onclick="openCheckout('Basic', '9.000')" class="btn btn-line w-full text-center py-2 text-xs font-bold">Beli Basic</button>
+      </div>
+      <div class="p-4 rounded-2xl bg-[var(--white-card)] border-3 border-[var(--ink)] shadow-[4px_4px_0_var(--ink)]">
+        <div class="mono text-xs font-bold uppercase text-[var(--ink-soft)] mb-1">VIP Standar</div>
+        <div class="display text-2xl mb-1">Rp 25.000<span class="text-xs font-normal text-gray-600"> / 30 Hari</span></div>
+        <button onclick="openCheckout('VIP Standar', '25.000')" class="btn btn-line w-full text-center py-2 text-xs font-bold">Beli Standar</button>
+      </div>
+      <div class="p-4 rounded-2xl bg-[var(--accent-light)] border-3 border-[var(--ink)] shadow-[4px_4px_0_var(--ink)]">
+        <div class="mono text-xs font-bold uppercase text-[var(--accent-dark)] mb-1">VIP Pro Max</div>
+        <div class="display text-2xl mb-1">Rp 45.000<span class="text-xs font-normal text-gray-600"> / 30 Hari</span></div>
+        <button onclick="openCheckout('VIP Pro Max', '45.000')" class="btn btn-fill w-full text-center py-2 text-xs font-bold">Beli Pro Max</button>
+      </div>
+    </div>
+    <div class="mt-6 pt-4 border-t-2 border-[var(--ink)]">
+      <button id="authBtn" onclick="loginWithGoogle()" class="btn btn-line w-full py-3 text-xs font-extrabold border-2 border-[var(--ink)] shadow-[4px_4px_0_var(--ink)]">Masuk / Akses Akun</button>
+      <button id="logoutBtn" onclick="logoutUser()" class="hidden btn btn-line w-full py-3 mt-2 text-xs font-extrabold border-2 border-[var(--ink)] shadow-[4px_4px_0_var(--ink)] hover:bg-red-500 hover:text-white hover:border-red-700">Keluar Akun</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CHECKOUT MODAL ===== -->
+<div class="modal-overlay" id="checkoutModal">
+  <div class="modal-box max-w-sm text-center">
+    <div class="flex items-center justify-between pb-3 mb-4 border-b-2 border-[var(--ink)]">
+      <h3 class="display text-lg font-black">CHECKOUT</h3>
+      <button onclick="closeCheckout()" class="w-8 h-8 border-2 border-[var(--ink)] rounded-xl font-bold flex items-center justify-center hover:bg-[var(--accent)] hover:text-white transition">✕</button>
+    </div>
+    <div id="checkoutStep1">
+      <p class="mono text-xs font-bold uppercase text-[var(--ink-soft)]" id="checkoutPlanTitle"></p>
+      <p class="display text-2xl mb-4" id="checkoutPlanPrice"></p>
+      <img id="userQrisImage" src="" class="w-48 h-48 mx-auto border-2 border-[var(--ink)] rounded-xl mb-4 bg-white object-contain">
+      <button onclick="processPayment(event)" class="btn btn-fill w-full py-3 text-xs font-bold">Saya Sudah Bayar</button>
+    </div>
+    <div id="checkoutStep2" class="hidden">
+      <p class="text-sm font-bold mb-4">Terima kasih! Pembayaran Anda sedang diverifikasi admin secara manual. VIP akan aktif setelah dikonfirmasi.</p>
+      <button onclick="finishCheckout()" class="btn btn-fill w-full py-3 text-xs font-bold">Selesai</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FULLSCREEN VIEWER ===== -->
+<div class="modal-overlay" id="fullscreenViewer">
+  <div class="relative w-full h-full flex items-center justify-center p-4">
+    <span id="fullscreenLabel" class="absolute top-6 left-1/2 -translate-x-1/2 px-3 py-1 text-white text-xs font-bold mono rounded-lg z-10"></span>
+    <button onclick="closeFullscreenView()" class="absolute top-4 right-4 w-9 h-9 bg-white border-2 border-[var(--ink)] rounded-xl font-bold flex items-center justify-center z-10">✕</button>
+    <img id="fullscreenImg" class="hidden max-w-full max-h-full rounded-xl">
+    <video id="fullscreenVideo" controls class="hidden max-w-full max-h-full rounded-xl"></video>
+  </div>
+</div>
+
+<header class="relative z-50 flex items-center justify-between px-3 sm:px-8 py-3 bg-[rgba(244,235,217,0.95)] border-b-3 border-[var(--ink)] gap-2">
+  <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+    <button onclick="openVipDrawer()" class="btn-line flex items-center justify-center w-9 h-9 rounded-xl border-2 border-[var(--ink)] hover:bg-[var(--accent-light)] transition cursor-pointer shadow-[2px_2px_0_var(--ink)] active:translate-y-0.5 shrink-0" title="Menu Aplikasi">
+      <svg class="w-5 h-5 text-[var(--ink)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 6h.01M12 12h.01M12 18h.01"/></svg>
+    </button>
+    <div class="flex items-center cursor-pointer shrink-0" onclick="window.scrollTo({top:0, behavior:'smooth'})">
+      <span class="mono text-base sm:text-xl font-black tracking-wider leading-none block whitespace-nowrap" style="font-family: 'JetBrains Mono', monospace;">UpclaseLam</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-1.5 sm:gap-3 shrink-0 overflow-x-auto no-scrollbar">
+    <div id="userStatusBadge" class="flex items-center bg-[var(--white-card)] px-2.5 sm:px-3 py-1.5 rounded-xl border-2 border-[var(--ink)] mono text-[10px] sm:text-xs font-bold shadow-[2px_2px_0_var(--ink)] shrink-0 whitespace-nowrap">
+      <span id="userStatusText">Free</span>
+    </div>
+    <button id="adminPanelBtn" onclick="openAdminModal()" class="hidden btn-line px-2.5 sm:px-3 py-1.5 text-xs font-extrabold bg-yellow-300 text-black border-2 border-[var(--ink)] shrink-0">⚡ Admin</button>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+  <div class="text-center max-w-3xl mx-auto mb-8">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-light)] border-2 border-[var(--ink)] mono text-xs font-bold text-[var(--ink)] mb-3">PIXEL RESTORATION</div>
+    <h1 class="display text-3xl sm:text-5xl font-black leading-tight mb-2">SULAP FOTO & VIDEO <span class="text-[var(--accent)]">JADI HD MEMUKAU</span></h1>
+    <p class="text-xs sm:text-sm text-[var(--ink-soft)] max-w-xl mx-auto font-medium">Proses secara instan. Geser slider (bisa dari mana saja di foto) untuk membandingkan hasil.</p>
+  </div>
+
+  <section id="studio" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <div class="lg:col-span-8 space-y-4">
+      <div class="media-wrapper group" id="canvasContainer">
+        <canvas id="daisenCanvas" width="1000" height="1000"></canvas>
+        <div class="scanline"></div>
+        <div class="absolute top-4 left-4 z-30">
+          <span id="mediaBadge" class="px-3 py-1.5 bg-[var(--ink)] text-[var(--paper)] text-[10px] font-bold mono uppercase rounded-xl shadow-[2px_2px_0_var(--accent)] border border-[var(--accent)]">Media 1:1 HD</span>
+        </div>
+        <button type="button" onclick="openFullscreenView('before')" class="absolute bottom-4 left-4 z-30 px-3 py-1 bg-[var(--ink)] text-white text-[10px] font-bold mono rounded-lg border border-[var(--ink-soft)] opacity-90 hover:opacity-100 hover:scale-105 transition cursor-pointer">SEBELUM</button>
+        <button type="button" onclick="openFullscreenView('after')" class="absolute bottom-4 right-4 z-30 px-3 py-1 bg-[var(--accent)] text-white text-[10px] font-bold mono rounded-lg border border-[var(--ink)] opacity-90 hover:opacity-100 hover:scale-105 transition cursor-pointer shadow-[2px_2px_0_var(--ink)]">SESUDAH (HD)</button>
+        <div class="split-line" id="splitLine" style="left: 50%;">
+          <div class="split-button"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M8 9l-4 4 4 4m8-8l4 4-4 4"/></svg></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-4 space-y-5">
+      <div class="panel-card">
+        <div class="mb-4">
+          <h2 class="display text-xl font-bold mb-1">Panel Penjernih UpclaseLam</h2>
+          <p class="text-[11px] text-[var(--ink-soft)] mono">Atur parameter atau unggah berkas foto/video Anda.</p>
+        </div>
+        <label class="dropzone block mb-5">
+          <input type="file" class="hidden" accept="image/*,video/*" onchange="handleFileUpload(event)">
+          <div class="w-10 h-10 mx-auto bg-white rounded-full border-2 border-[var(--ink)] flex items-center justify-center mb-2 shadow-[2px_2px_0_var(--ink)]">
+            <svg class="w-5 h-5 text-[var(--accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          </div>
+          <p class="text-xs font-bold font-mono mb-1 text-[var(--ink)]">Tarik Foto / Video Ke Sini</p>
+          <p class="text-[10px] text-[var(--ink-soft)]">Otomatis deteksi rasio 1:1, 9:16, 16:9</p>
+        </label>
+
+        <div class="space-y-4 mb-6">
+          <div>
+            <div class="flex justify-between text-[11px] font-bold mono uppercase mb-2"><span>Ketajaman Piksel</span><span id="valSharp" class="text-[var(--accent-dark)] bg-[var(--accent-light)] px-2 py-0.5 rounded">2.5x</span></div>
+            <input type="range" id="sliderSharp" min="1" max="5" step="0.1" value="2.5" oninput="updateCanvasFilters()">
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] font-bold mono uppercase mb-2"><span>Kontras & HDR</span><span id="valContrast" class="text-[var(--accent-dark)] bg-[var(--accent-light)] px-2 py-0.5 rounded">125%</span></div>
+            <input type="range" id="sliderContrast" min="100" max="200" step="1" value="125" oninput="updateCanvasFilters()">
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-[10px] font-bold mono uppercase mb-2 text-[var(--ink-soft)]">Target Resolusi:</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button id="btnRes-720p" onclick="setResolution('720p')" class="py-1.5 text-[10px] font-bold border-2 border-[var(--ink)] rounded-lg bg-[var(--accent)] text-white shadow-[2px_2px_0_var(--ink)] transition">720p</button>
+            <button id="btnRes-1080p" onclick="setResolution('1080p')" class="py-1.5 text-[10px] font-bold border-2 border-[var(--ink)] rounded-lg hover:bg-[var(--accent)] hover:text-white transition">1080p</button>
+            <button id="btnRes-2k" onclick="setResolution('2k')" class="py-1.5 text-[10px] font-bold border-2 border-[var(--ink)] rounded-lg hover:bg-[var(--accent)] hover:text-white transition">2K</button>
+            <button id="btnRes-4k" onclick="setResolution('4k')" class="py-1.5 text-[10px] font-bold border-2 border-[var(--ink)] rounded-lg hover:bg-[var(--accent)] hover:text-white transition">4K</button>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <button onclick="exportResult('photo')" class="btn btn-fill w-full py-3">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Simpan Hasil Foto (HD)</span>
+          </button>
+          <button onclick="exportResult('video')" class="btn btn-line w-full py-3 text-[var(--ink-soft)] hover:text-[var(--ink)]">
+            <span>Simpan Frame Video</span>
+          </button>
+        </div>
+
+        <div class="mt-4 pt-4 border-t-2 border-[var(--paper-alt)]">
+          <div class="flex justify-between items-center text-[10px] font-bold mono uppercase mb-1"><span>Kuota Simpan Harian</span><span id="limitText" class="text-[var(--accent-dark)]">50 / 50</span></div>
+          <div class="w-full h-2 bg-[var(--paper-alt)] rounded-full overflow-hidden border border-[var(--ink)]"><div id="limitBar" class="h-full bg-[var(--accent)] w-full transition-all duration-300"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const API = window.API_BASE_URL;
+const DEFAULT_IMAGE_URL = "https://c.termai.cc/i123/Gq7NREj.jpg";
+const RESOLUTION_COST = { '720p': 5, '1080p': 20, '2k': 35, '4k': 50 };
+const MAX_PHOTO_SIZE_MB = 15;
+const MAX_VIDEO_SIZE_MB = 60;
+
+let state = {
+  user: null,
+  splitPos: 0.5,
+  currentImage: null,
+  hdImage: null,
+  isVideo: false,
+  hdResultUrl: null,
+  hdVideoUrl: null,
+  isProcessingHD: false,
+  originalMediaUrl: null,
+  originalVideoUrl: null,
+  selectedRes: '720p'
+};
+
+let socket = null;
+
+const canvas = document.getElementById('daisenCanvas');
+const ctx = canvas.getContext('2d');
+const splitLine = document.getElementById('splitLine');
+const canvasContainer = document.getElementById('canvasContainer');
+
+window.onload = async function () {
+  initCanvasWithImage(DEFAULT_IMAGE_URL);
+  setupSplitSlider();
+  await restoreSession();
+};
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').innerText = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+// ===== API helper: semua request ke backend pakai cookie httpOnly (credentials:'include') =====
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    credentials: 'include',
+    headers: { ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...(options.headers || {}) }
+  });
+  let data = null;
+  try { data = await res.json(); } catch (_) { /* respons kosong / bukan json */ }
+  if (!res.ok) throw new Error(data?.error || `Request gagal (status ${res.status})`);
+  return data;
+}
+
+// ===== Canvas & Slider (before/after) =====
+function initCanvasWithImage(url) {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.src = url;
+  img.onload = function () {
+    state.currentImage = img;
+    state.isVideo = false;
+    state.originalMediaUrl = url;
+    canvas.width = img.width || 1080;
+    canvas.height = img.height || 1080;
+    const ratio = Math.round((canvas.width / canvas.height) * 100) / 100;
+    let badgeTxt = "Media 1:1 HD";
+    if (ratio > 1.3) badgeTxt = "Media 16:9 HD";
+    else if (ratio < 0.8) badgeTxt = "Media 9:16 HD";
+    document.getElementById('mediaBadge').innerText = badgeTxt;
+    renderCanvas();
+  };
+}
+
+function renderCanvas() {
+  if (!state.currentImage) return;
+  const w = canvas.width, h = canvas.height;
+  const splitX = w * state.splitPos;
+  ctx.clearRect(0, 0, w, h);
+
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, splitX, h); ctx.clip();
+  ctx.filter = 'blur(1.5px) contrast(90%)';
+  ctx.drawImage(state.currentImage, 0, 0, w, h);
+  ctx.restore();
+
+  const contrastVal = parseFloat(document.getElementById('sliderContrast').value);
+  ctx.save(); ctx.beginPath(); ctx.rect(splitX, 0, w - splitX, h); ctx.clip();
+  if (state.hdImage) {
+    ctx.filter = 'none';
+    ctx.drawImage(state.hdImage, 0, 0, w, h);
+  } else {
+    ctx.filter = `contrast(${contrastVal}%) saturate(110%) brightness(102%)`;
+    ctx.drawImage(state.currentImage, 0, 0, w, h);
+  }
+  ctx.restore();
+}
+
+function updateCanvasFilters() {
+  document.getElementById('valSharp').innerText = document.getElementById('sliderSharp').value + 'x';
+  document.getElementById('valContrast').innerText = document.getElementById('sliderContrast').value + '%';
+  renderCanvas();
+}
+
+// Slider bisa digeser dari mana saja di dalam foto (tidak cuma garis tipis), dan tidak
+// bentrok dengan scroll halaman saat drag di HP (preventDefault di touchmove).
+function setupSplitSlider() {
+  let isDragging = false;
+  const movePos = (clientX) => {
+    const rect = canvasContainer.getBoundingClientRect();
+    let pos = (clientX - rect.left) / rect.width;
+    pos = Math.max(0.02, Math.min(0.98, pos));
+    state.splitPos = pos;
+    splitLine.style.left = (pos * 100) + '%';
+    renderCanvas();
+  };
+  const startDrag = (clientX) => { isDragging = true; movePos(clientX); };
+  const stopDrag = () => { isDragging = false; };
+
+  splitLine.addEventListener('mousedown', (e) => { e.preventDefault(); startDrag(e.clientX); });
+  canvasContainer.addEventListener('mousedown', (e) => { if (e.target.closest('button')) return; startDrag(e.clientX); });
+  window.addEventListener('mouseup', stopDrag);
+  window.addEventListener('mousemove', (e) => { if (isDragging) { e.preventDefault(); movePos(e.clientX); } });
+
+  const onTouchStart = (e) => {
+    if (e.touches.length === 0 || e.target.closest('button')) return;
+    e.preventDefault(); startDrag(e.touches[0].clientX);
+  };
+  splitLine.addEventListener('touchstart', onTouchStart, { passive: false });
+  canvasContainer.addEventListener('touchstart', onTouchStart, { passive: false });
+  window.addEventListener('touchmove', (e) => { if (isDragging && e.touches.length) { e.preventDefault(); movePos(e.touches[0].clientX); } }, { passive: false });
+  window.addEventListener('touchend', stopDrag);
+  window.addEventListener('touchcancel', stopDrag);
+}
+
+function setResolution(res) {
+  if (!state.user) { showToast("Silakan login terlebih dahulu!"); openAuthModal(); return; }
+  state.selectedRes = res;
+  ['720p', '1080p', '2k', '4k'].forEach((r) => {
+    const btn = document.getElementById('btnRes-' + r);
+    btn.className = r === res
+      ? "py-1.5 text-[10px] font-bold border-2 border-[var(--ink)] rounded-lg bg-[var(--accent)] text-white shadow-[2px_2px_0_var(--ink)] transition"
+      : "py-1.5 text-[10px] font-bold border-2 border-[var(--ink)] rounded-lg hover:bg-[var(--accent)] hover:text-white transition";
+  });
+  showToast(`Resolusi target: ${res.toUpperCase()} (butuh ${RESOLUTION_COST[res]} limit sekali simpan)`);
+}
+
+// ===== Upload & proses HD lewat BACKEND (bukan langsung dari browser lagi) =====
+async function processFileWithHDApi(file) {
+  state.isProcessingHD = true;
+  state.hdResultUrl = null;
+  state.hdVideoUrl = null;
+  try {
+    const sizeMB = file.size / (1024 * 1024);
+    const maxMB = state.isVideo ? MAX_VIDEO_SIZE_MB : MAX_PHOTO_SIZE_MB;
+    if (sizeMB > maxMB) throw new Error(`Ukuran berkas terlalu besar (${sizeMB.toFixed(1)}MB). Maksimal ${maxMB}MB.`);
+
+    showToast("Mengunggah berkas ke server...");
+    const form = new FormData();
+    form.append('file', file);
+    const uploadData = await apiFetch('/api/upscale/upload', { method: 'POST', body: form });
+
+    if (state.isVideo) {
+      showToast("Memproses video ke kualitas HD, mohon tunggu...");
+      const { resultUrl } = await apiFetch('/api/upscale/video', {
+        method: 'POST', body: JSON.stringify({ url: uploadData.url })
+      });
+      state.hdVideoUrl = resultUrl;
+      showToast("Video berhasil diproses ke HD!");
+    } else {
+      showToast("Memproses foto ke kualitas HD, mohon tunggu...");
+      const { resultUrl } = await apiFetch('/api/upscale/photo', {
+        method: 'POST', body: JSON.stringify({ url: uploadData.url })
+      });
+      state.hdResultUrl = resultUrl;
+      const hdImg = new Image();
+      hdImg.crossOrigin = "anonymous";
+      hdImg.onload = function () { state.hdImage = hdImg; renderCanvas(); };
+      hdImg.src = resultUrl;
+      showToast("Foto berhasil diproses ke HD!");
+    }
+  } catch (err) {
+    console.error(err);
+    showToast("Gagal memproses HD: " + err.message);
+  } finally {
+    state.isProcessingHD = false;
+  }
+}
+
+function handleFileUpload(e) {
+  if (!state.user) { showToast("Silakan login terlebih dahulu untuk upload foto/video!"); openAuthModal(); e.target.value = ""; return; }
+  const file = e.target.files[0];
+  if (!file) return;
+
+  state.isVideo = file.type.startsWith('video/');
+  state.hdImage = null; state.hdResultUrl = null; state.hdVideoUrl = null;
+
+  const reader = new FileReader();
+  reader.onload = function (evt) {
+    if (state.isVideo) {
+      state.originalVideoUrl = evt.target.result;
+      showToast("Berkas video dimuat, memulai proses HD...");
+    } else {
+      initCanvasWithImage(evt.target.result);
+      showToast("Berhasil memuat berkas!");
+    }
+    processFileWithHDApi(file);
+  };
+  reader.readAsDataURL(file);
+}
+
+function openFullscreenView(kind) {
+  const overlay = document.getElementById('fullscreenViewer');
+  const imgEl = document.getElementById('fullscreenImg');
+  const videoEl = document.getElementById('fullscreenVideo');
+  const label = document.getElementById('fullscreenLabel');
+  imgEl.classList.add('hidden'); imgEl.src = '';
+  videoEl.classList.add('hidden'); videoEl.pause(); videoEl.src = '';
+
+  if (state.isVideo) {
+    const src = kind === 'before' ? state.originalVideoUrl : state.hdVideoUrl;
+    if (!src) { showToast(kind === 'before' ? "Belum ada video yang diunggah." : "Hasil video HD belum tersedia."); return; }
+    videoEl.src = src; videoEl.classList.remove('hidden');
+  } else {
+    const src = kind === 'before' ? state.originalMediaUrl : state.hdResultUrl;
+    if (!src) { showToast(kind === 'before' ? "Belum ada foto yang diunggah." : "Hasil foto HD belum tersedia."); return; }
+    imgEl.src = src; imgEl.classList.remove('hidden');
+  }
+  label.innerText = kind === 'before' ? 'SEBELUM (ASLI)' : 'SESUDAH (HD)';
+  label.style.background = kind === 'before' ? 'var(--ink)' : 'var(--accent)';
+  overlay.classList.add('active');
+}
+function closeFullscreenView() {
+  document.getElementById('fullscreenViewer').classList.remove('active');
+  document.getElementById('fullscreenVideo').pause();
+}
+
+// ===== Export/Save (kuota dipotong & divalidasi di SERVER, bukan di client) =====
+async function exportResult(type) {
+  if (!state.user) { showToast("Silakan login terlebih dahulu!"); openAuthModal(); return; }
+  if (state.isProcessingHD) { showToast("Masih memproses HD, mohon tunggu sebentar..."); return; }
+
+  const res = state.selectedRes || '720p';
+  try {
+    const result = await apiFetch('/api/upscale/deduct', {
+      method: 'POST', body: JSON.stringify({ resolution: res })
+    });
+    state.user.limit = result.limit;
+    state.user.maxLimit = result.maxLimit;
+    updateQuotaUI();
+  } catch (err) {
+    showToast(err.message);
+    openVipDrawer();
+    return;
+  }
+
+  if (type === 'video') {
+    if (!state.hdVideoUrl) { showToast("Belum ada hasil video HD. Unggah video terlebih dahulu!"); return; }
+    showToast(`Berhasil menyimpan Video HD (${res.toUpperCase()})!`);
+    const link = document.createElement('a');
+    link.download = `UpclaseLam_HD_${Date.now()}.mp4`; link.href = state.hdVideoUrl; link.target = '_blank'; link.click();
+    return;
+  }
+
+  showToast(`Berhasil menyimpan Foto HD (${res.toUpperCase()})!`);
+  if (state.hdResultUrl) {
+    try {
+      const apiRes = await fetch(state.hdResultUrl);
+      const blob = await apiRes.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `UpclaseLam_HD_${Date.now()}.png`; link.href = blobUrl; link.click();
+      URL.revokeObjectURL(blobUrl);
+      return;
+    } catch (err) { console.error(err); }
+  }
+  const link = document.createElement('a');
+  link.download = `UpclaseLam_HD_${Date.now()}.png`; link.href = canvas.toDataURL(); link.click();
+}
+
+function updateQuotaUI() {
+  const limit = state.user?.limit ?? 50;
+  const maxLimit = state.user?.maxLimit ?? 50;
+  const percent = Math.max(0, (limit / maxLimit) * 100);
+  document.getElementById('limitBar').style.width = percent + '%';
+  document.getElementById('limitText').innerText = `${limit} / ${maxLimit}`;
+}
+
+// ===== Auth (Google OAuth asli lewat backend) =====
+function openAuthModal() { closeVipDrawer(); document.getElementById('authModal').classList.add('active'); }
+function closeAuthModal() { document.getElementById('authModal').classList.remove('active'); }
+function loginWithGoogle() { window.location.href = `${API}/api/auth/google`; }
+
+async function restoreSession() {
+  try {
+    const { user } = await apiFetch('/api/auth/me');
+    state.user = user;
+    applyUserPermissions();
+    if (user) connectRealtime();
+  } catch (err) {
+    console.error('Gagal cek sesi login:', err);
+  }
+}
+
+async function logoutUser() {
+  try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+  state.user = null;
+  closeVipDrawer();
+  applyUserPermissions();
+  if (socket) { socket.disconnect(); socket = null; }
+  showToast("Berhasil logout dari akun.");
+}
+
+function applyUserPermissions() {
+  const badgeText = document.getElementById('userStatusText');
+  const adminBtn = document.getElementById('adminPanelBtn');
+  const authBtn = document.getElementById('authBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  if (state.user) {
+    authBtn.classList.add('hidden');
+    logoutBtn.classList.remove('hidden');
+    if (state.user.role === 'admin') {
+      adminBtn.classList.remove('hidden');
+      badgeText.innerText = 'OWNER / ADMIN';
+    } else {
+      adminBtn.classList.add('hidden');
+      badgeText.innerText = state.user.package ? state.user.package.toUpperCase() : 'Free';
+    }
+    updateQuotaUI();
+  } else {
+    badgeText.innerText = 'Free';
+    adminBtn.classList.add('hidden');
+    authBtn.classList.remove('hidden');
+    logoutBtn.classList.add('hidden');
+  }
+}
+
+// ===== Realtime (Socket.IO) - hanya admin yang benar-benar di-join server ke room 'admins' =====
+function connectRealtime() {
+  socket = io(API, { withCredentials: true });
+  socket.on('admin:new-login', (entry) => {
+    if (document.getElementById('adminModal').classList.contains('active')) {
+      prependLoginRow(entry);
+      const el = document.getElementById('statTotalLogins');
+      if (el) el.innerText = parseInt(el.innerText || '0') + 1;
+    }
+    if (state.user?.role === 'admin') showToast(`🔔 Login baru: ${entry.email}`);
+  });
+  socket.on('admin:stats', (stats) => {
+    const u = document.getElementById('statTotalUsers');
+    const l = document.getElementById('statTotalLogins');
+    if (u) u.innerText = stats.totalUsers;
+    if (l) l.innerText = stats.totalLogins;
+  });
+}
+
+function prependLoginRow(entry) {
+  const tbody = document.getElementById('adminLoginHistoryBody');
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.className = 'border-b border-gray-200 bg-yellow-50';
+  const waktu = new Date(entry.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+  tr.innerHTML = `<td class="p-2 font-bold">${entry.email}</td><td class="p-2 text-[10px] uppercase font-extrabold text-[var(--accent)]">${entry.method}</td><td class="p-2 text-[10px]">${waktu}</td>`;
+  tbody.prepend(tr);
+}
+
+// ===== Admin Panel =====
+async function openAdminModal() {
+  document.getElementById('adminModal').classList.add('active');
+  await Promise.all([renderAdminUsersTable(), renderAdminStats(), loadAdminQris()]);
+}
+function closeAdminModal() { document.getElementById('adminModal').classList.remove('active'); }
+
+async function loadAdminQris() {
+  try {
+    const { qris } = await apiFetch('/api/qris');
+    document.getElementById('adminQrisPreview').src = qris;
+  } catch (_) {}
+}
+
+async function handleQrisUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('qris', file);
+  try {
+    const { qris } = await apiFetch('/api/admin/qris', { method: 'POST', body: form });
+    document.getElementById('adminQrisPreview').src = qris;
+    showToast("Foto QRIS berhasil diperbarui!");
+  } catch (err) { showToast("Gagal upload QRIS: " + err.message); }
+}
+
+async function adminGrantVip(e) {
+  e.preventDefault();
+  const email = document.getElementById('adminTargetEmail').value.trim().toLowerCase();
+  const pkg = document.getElementById('adminSelectPackage').value;
+  const days = parseInt(document.getElementById('adminDurationDays').value) || 30;
+  try {
+    await apiFetch('/api/admin/grant-vip', { method: 'POST', body: JSON.stringify({ email, package: pkg, days }) });
+    showToast(`Akun ${email} berhasil dijadikan ${pkg.toUpperCase()} (${days} Hari)!`);
+    await renderAdminUsersTable();
+  } catch (err) { showToast("Gagal: " + err.message); }
+}
+
+async function revokeVip(email) {
+  try {
+    await apiFetch('/api/admin/revoke-vip', { method: 'POST', body: JSON.stringify({ email }) });
+    showToast(`Paket VIP untuk ${email} dicabut.`);
+    await renderAdminUsersTable();
+  } catch (err) { showToast("Gagal: " + err.message); }
+}
+
+async function renderAdminUsersTable() {
+  const tbody = document.getElementById('adminUserTableBody');
+  try {
+    const { users } = await apiFetch('/api/admin/users');
+    tbody.innerHTML = '';
+    if (users.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-500">Belum ada user.</td></tr>'; return; }
+    users.forEach((u) => {
+      const isVip = u.package && u.package_expires && new Date(u.package_expires) > new Date();
+      const tr = document.createElement('tr');
+      tr.className = 'border-b border-gray-200';
+      tr.innerHTML = `
+        <td class="p-2 font-bold">${u.email}</td>
+        <td class="p-2 uppercase text-[10px] font-extrabold">${u.role}</td>
+        <td class="p-2 uppercase text-[10px] font-extrabold text-[var(--accent)]">${isVip ? u.package : '-'}</td>
+        <td class="p-2 text-right">${isVip ? `<button onclick="revokeVip('${u.email}')" class="text-red-600 hover:underline text-[10px]">Hapus VIP</button>` : ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) { tbody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-red-500">${err.message}</td></tr>`; }
+}
+
+async function renderAdminStats() {
+  try {
+    const stats = await apiFetch('/api/admin/stats');
+    document.getElementById('statTotalUsers').innerText = stats.totalUsers;
+    document.getElementById('statTotalLogins').innerText = stats.totalLogins;
+
+    const { history } = await apiFetch('/api/admin/login-history?limit=50');
+    const tbody = document.getElementById('adminLoginHistoryBody');
+    tbody.innerHTML = '';
+    if (history.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="p-3 text-center text-gray-500">Belum ada riwayat login.</td></tr>'; return; }
+    history.forEach((entry) => prependLoginRowStatic(entry, tbody));
+  } catch (err) { console.error(err); }
+}
+function prependLoginRowStatic(entry, tbody) {
+  const tr = document.createElement('tr');
+  tr.className = 'border-b border-gray-200';
+  const waktu = new Date(entry.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+  tr.innerHTML = `<td class="p-2 font-bold">${entry.email}</td><td class="p-2 text-[10px] uppercase font-extrabold text-[var(--accent)]">${entry.method}</td><td class="p-2 text-[10px]">${waktu}</td>`;
+  tbody.appendChild(tr);
+}
+
+// ===== VIP Drawer / Checkout =====
+function openVipDrawer() { document.getElementById('vipDrawerOverlay').classList.add('active'); }
+function closeVipDrawer() { document.getElementById('vipDrawerOverlay').classList.remove('active'); }
+
+async function openCheckout(planName, price) {
+  closeVipDrawer();
+  document.getElementById('checkoutPlanTitle').innerText = planName;
+  document.getElementById('checkoutPlanPrice').innerText = 'Rp ' + price;
+  document.getElementById('checkoutStep1').classList.remove('hidden');
+  document.getElementById('checkoutStep2').classList.add('hidden');
+  document.getElementById('checkoutModal').classList.add('active');
+  try {
+    const { qris } = await apiFetch('/api/qris');
+    document.getElementById('userQrisImage').src = qris;
+  } catch (_) {}
+}
+function closeCheckout() { document.getElementById('checkoutModal').classList.remove('active'); }
+function processPayment(e) {
+  e.preventDefault();
+  document.getElementById('checkoutStep1').classList.add('hidden');
+  document.getElementById('checkoutStep2').classList.remove('hidden');
+}
+function finishCheckout() { closeCheckout(); showToast("Terima kasih! Pembayaran Anda sedang diverifikasi admin."); }
+</script>
+</body>
+</html>
